@@ -4,7 +4,6 @@ import asyncio
 import uvicorn
 
 from datetime import datetime, timedelta
-import calendar
 
 from database import database, engine, metadata
 from fastapi import Depends, FastAPI, HTTPException, status
@@ -80,6 +79,7 @@ async def shutdown() -> None:
 
 
 def get_password_hash(password: str) -> str:
+    """Make hashed password from plain"""
     if len(password) > 5:
         return pwd_context.hash(password)
     else:
@@ -87,11 +87,13 @@ def get_password_hash(password: str) -> str:
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify user plain password with hashed password"""
     #print(get_password_hash(plain_password))
     return pwd_context.verify(plain_password, hashed_password)
 
 
 async def authenticate_user(username: str, password: str) -> schemas.UserInDB:
+    """Authenticate user and get user info from DB"""
     user = await crud.get_user(username=username)
     if user and verify_password(password, user.hashed_password):
         return user
@@ -100,6 +102,7 @@ async def authenticate_user(username: str, password: str) -> schemas.UserInDB:
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    """Create new token"""
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
@@ -111,6 +114,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
 
 
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> schemas.UserInDB:
+    """Check token for user and get user info from DB if token is valid"""
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -132,12 +136,14 @@ async def get_current_user(token: str = Depends(oauth2_scheme)) -> schemas.UserI
 
 
 async def get_current_active_user(current_user: schemas.UserInDB = Depends(get_current_user)) -> schemas.UserInDB:
+    """Check user - active or not"""
     if not current_user.is_active:
         raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
 
 async def is_user(user_id: int, email: str) -> schemas.UserInDB:
+    """Validate user by id and email"""
     db_user = await crud.get_user(user_id=user_id)
     if not db_user:
         await asyncio.sleep(EXCEPTION_PER_SEC_LIMIT)
@@ -146,18 +152,6 @@ async def is_user(user_id: int, email: str) -> schemas.UserInDB:
         await asyncio.sleep(EXCEPTION_PER_SEC_LIMIT)
         raise HTTPException(status_code=404, detail="Query for other user prohibited")
     return db_user
-
-
-def month_begin() -> datetime:
-    dt = datetime.now()
-    return datetime.strptime(f"{dt.timetuple().tm_year}-{dt.timetuple().tm_mon}-01 00:00:00", "%Y-%m-%d %H:%M:%S")
-
-
-def month_end() -> datetime:
-    dt = datetime.now()
-    _, num_days = calendar.monthrange(dt.timetuple().tm_year, dt.timetuple().tm_mon)
-    return datetime.strptime(f"{dt.timetuple().tm_year}-{dt.timetuple().tm_mon}-{num_days} 23:59:59",
-                             "%Y-%m-%d %H:%M:%S")
 
 
 @app.get("/")
@@ -178,7 +172,7 @@ async def create_user(user: schemas.UserCreate) -> schemas.User:
 
 
 @app.post("/token", response_model=schemas.Token , tags=["Token"])
-async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()) -> dict[str, str]:
+async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()) -> schemas.Token:
     try:
         user = await authenticate_user(form_data.username, form_data.password)
     except UserPasswordIsInvalid:
@@ -192,7 +186,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return schemas.Token(**{"access_token": access_token, "token_type": "bearer"})
 
 
 @app.get("/user", response_model=schemas.User, tags=["User"])
@@ -227,6 +221,7 @@ async def update_investment_for_user(user_id: int, investment: schemas.Investmen
         raise HTTPException(status_code=400, detail="Investment for update not found")
     return result
 
+
 @app.delete("/users/{user_id}/investment_items/", response_model=schemas.Result, tags=["Investments"])
 async def delete_investment_for_user(user_id: int, investment_id: int,
                                 current_user: schemas.User = Depends(get_current_active_user)) -> schemas.Result:
@@ -238,6 +233,7 @@ async def delete_investment_for_user(user_id: int, investment_id: int,
     except InvestmentNotFound:
         raise HTTPException(status_code=400, detail="Investment for delete not found")
     return result
+
 
 @app.get("/users/{user_id}/categories/", response_model=schemas.CategoryUser, tags=["Categories"])
 async def get_categories_for_user(user_id: int,
