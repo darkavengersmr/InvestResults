@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import List, Union
 from pydantic import BaseModel, BaseSettings, Field
 
@@ -140,21 +140,18 @@ class CategoryUser(BaseModel):
 
 
 class HistoryBase(BaseModel):
-    date: datetime = Field(default_factory=lambda: datetime.strptime(f"{datetime.now().timetuple().tm_year}-"
-                                                                     f"{datetime.now().timetuple().tm_mon}-01 00:00:00",
-                                                                     "%Y-%m-%d %H:%M:%S"))
+    date: datetime = Field(default_factory=datetime.now)
     sum: int = 0
-    investments_id: Union[int, None]
+    investment_id: int
 
 
-class HistoryCreate(InvestmentBase):
+class HistoryCreate(HistoryBase):
     class Config:
         orm_mode = True
 
 
-class HistoryInDB(InvestmentBase):
+class HistoryInDB(HistoryBase):
     id: int
-    owner_id: int
 
     class Config:
         orm_mode = True
@@ -164,7 +161,7 @@ class HistoryOut(BaseModel):
     id: int
     date: datetime
     sum: int
-    investments_id: Union[int, None]
+    investment_id: int
 
     class Config:
         orm_mode = True
@@ -185,22 +182,19 @@ class HistoryUser(BaseModel):
 
 
 class InOutBase(BaseModel):
-    date: datetime = Field(default_factory=lambda: datetime.strptime(f"{datetime.now().timetuple().tm_year}-"
-                                                                     f"{datetime.now().timetuple().tm_mon}-01 00:00:00",
-                                                                         "%Y-%m-%d %H:%M:%S"))
+    date: datetime = Field(default_factory=datetime.now)
     description: str = 'Прочие корректировки'
     sum: int = 0
-    investments_id: Union[int, None]
+    investment_id: int
 
 
-class InOutCreate(InvestmentBase):
+class InOutCreate(InOutBase):
     class Config:
         orm_mode = True
 
 
-class InOutInDB(InvestmentBase):
+class InOutInDB(InOutBase):
     id: int
-    owner_id: int
 
     class Config:
         orm_mode = True
@@ -211,7 +205,7 @@ class InOutOut(BaseModel):
     date: datetime
     description: str
     sum: int
-    investments_id: Union[int, None]
+    investment_id: int
 
     class Config:
         orm_mode = True
@@ -225,7 +219,7 @@ class InOutDelete(BaseModel):
 
 
 class InOutUser(BaseModel):
-    history: List[HistoryOut] = []
+    in_out: List[InOutOut] = []
 
     class Config:
         orm_mode = True

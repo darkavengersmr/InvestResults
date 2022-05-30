@@ -55,10 +55,10 @@ ALTER TABLE IF EXISTS public.investments_items
 CREATE TABLE public.investments_history
 (
 	id serial NOT NULL,
-	date timestamp without time zone,
+	date timestamp with time zone,
 	sum integer,
-	investments_id integer REFERENCES investments_items(id) ON DELETE CASCADE,
-	CONSTRAINT pk_investments_history_id PRIMARY KEY (id)
+	investment_id integer REFERENCES investments_items(id) ON DELETE CASCADE,
+	CONSTRAINT pk_investment_history_id PRIMARY KEY (id)
 )
 
 WITH (
@@ -72,11 +72,11 @@ ALTER TABLE IF EXISTS public.investments_history
 CREATE TABLE public.investments_in_out
 (
 	id serial NOT NULL,
-	date timestamp without time zone,
+	date timestamp with time zone,
 	description text NOT NULL,
 	sum integer,
-	investments_id integer REFERENCES investments_items(id) ON DELETE CASCADE,
-	CONSTRAINT pk_investments_in_out_id PRIMARY KEY (id)
+	investment_id integer REFERENCES investments_items(id) ON DELETE CASCADE,
+	CONSTRAINT pk_investment_in_out_id PRIMARY KEY (id)
 )
 
 WITH (

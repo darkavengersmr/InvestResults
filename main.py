@@ -46,6 +46,14 @@ tags_metadata = [
         "description": "Инвестиции",
     },
     {
+        "name": "History",
+        "description": "История состояния инвестиций",
+    },
+    {
+        "name": "In/Out",
+        "description": "История пополнений и снятий",
+    },
+    {
         "name": "Categories",
         "description": "Категории инвестиций",
     },
@@ -194,7 +202,7 @@ async def read_user(current_user: schemas.User = Depends(get_current_active_user
     return await is_user(current_user.id, current_user.email)
 
 
-@app.post("/users/{user_id}/investment_items/", response_model=schemas.InvestmentInDB, tags=["Investments"])
+@app.post("/users/investment_items/", response_model=schemas.InvestmentInDB, tags=["Investments"])
 async def create_investment_for_user(user_id: int, investment: schemas.InvestmentCreate,
                                 current_user: schemas.User = Depends(get_current_active_user)) -> schemas.InvestmentInDB:
     await is_user(user_id, current_user.email)
@@ -203,13 +211,15 @@ async def create_investment_for_user(user_id: int, investment: schemas.Investmen
     return await crud.create_user_investment_item(investment=investment, user_id=user_id)
 
 
-@app.get("/users/{user_id}/investment_items/", response_model=schemas.InvestmentUser, tags=["Investments"])
-async def get_investments_for_user(user_id: int, current_user: schemas.User = Depends(get_current_active_user)):
+@app.get("/users/investment_items/", response_model=schemas.InvestmentUser, tags=["Investments"])
+async def get_investments_for_user(user_id: int,
+                                   current_user: schemas.User =
+                                   Depends(get_current_active_user)) -> schemas.InvestmentUser:
     await is_user(user_id, current_user.email)
     return await crud.get_user_investment_items(user_id=user_id)
 
 
-@app.put("/users/{user_id}/investment_items/", response_model=schemas.Result, tags=["Investments"])
+@app.put("/users/investment_items/", response_model=schemas.Result, tags=["Investments"])
 async def update_investment_for_user(user_id: int, investment: schemas.InvestmentOut,
                                      current_user: schemas.User = Depends(get_current_active_user)) -> schemas.Result:
     await is_user(user_id, current_user.email)
@@ -222,7 +232,7 @@ async def update_investment_for_user(user_id: int, investment: schemas.Investmen
     return result
 
 
-@app.delete("/users/{user_id}/investment_items/", response_model=schemas.Result, tags=["Investments"])
+@app.delete("/users/investment_items/", response_model=schemas.Result, tags=["Investments"])
 async def delete_investment_for_user(user_id: int, investment_id: int,
                                 current_user: schemas.User = Depends(get_current_active_user)) -> schemas.Result:
     await is_user(user_id, current_user.email)
@@ -235,14 +245,124 @@ async def delete_investment_for_user(user_id: int, investment_id: int,
     return result
 
 
-@app.get("/users/{user_id}/categories/", response_model=schemas.CategoryUser, tags=["Categories"])
+@app.post("/users/investment_history/", response_model=schemas.HistoryInDB, tags=["History"])
+async def create_investment_history_for_user(user_id: int, investment: schemas.HistoryCreate,
+                                             current_user: schemas.User =
+                                             Depends(get_current_active_user)) -> schemas.HistoryInDB:
+    await is_user(user_id, current_user.email)
+    if user_id == DEMO_USER_ID:
+        return schemas.HistoryInDB(**investment.dict(), id=9999999)
+    try:
+        result = await crud.create_user_investment_history(investment=investment, user_id=user_id)
+    except InvestmentNotFound:
+        raise HTTPException(status_code=400, detail="Investment id not found")
+    return result
+
+
+@app.get("/users/investment_history/", response_model=schemas.HistoryUser, tags=["History"])
+async def get_investments_history_for_user(user_id: int, investment_id: int,
+                                           current_user: schemas.User =
+                                           Depends(get_current_active_user)) -> schemas.HistoryUser:
+    await is_user(user_id, current_user.email)
+    try:
+        result = await crud.get_user_investment_history(user_id=user_id, investment_id=investment_id)
+    except InvestmentNotFound:
+        raise HTTPException(status_code=400, detail="Investment id not found")
+    return result
+
+
+@app.put("/users/investment_history/", response_model=schemas.Result, tags=["History"])
+async def update_investment_history_for_user(user_id: int, investment: schemas.HistoryOut,
+                                             current_user: schemas.User =
+                                             Depends(get_current_active_user)) -> schemas.Result:
+    await is_user(user_id, current_user.email)
+    if user_id == DEMO_USER_ID:
+        return schemas.Result(**{"result": "investment history updated"})
+    try:
+        result = await crud.update_user_investment_history(investment=investment, user_id=user_id)
+    except InvestmentNotFound:
+        raise HTTPException(status_code=400, detail="Investment history for update not found")
+    return result
+
+
+@app.delete("/users/investment_history/", response_model=schemas.Result, tags=["History"])
+async def delete_investment_history_for_user(user_id: int, investment_history_id: int,
+                                             current_user: schemas.User =
+                                             Depends(get_current_active_user)) -> schemas.Result:
+    await is_user(user_id, current_user.email)
+    if user_id == DEMO_USER_ID:
+        return schemas.Result(**{"result": "investment history for demo user conditionally deleted"})
+    try:
+        result = await crud.delete_user_investment_history(investment_history_id=investment_history_id,
+                                                           user_id=user_id)
+    except InvestmentNotFound:
+        raise HTTPException(status_code=400, detail="Investment history for delete not found")
+    return result
+
+
+@app.post("/users/investment_inout/", response_model=schemas.InOutInDB, tags=["In/Out"])
+async def create_investment_inout_for_user(user_id: int, investment: schemas.InOutCreate,
+                                             current_user: schemas.User =
+                                             Depends(get_current_active_user)) -> schemas.InOutInDB:
+    await is_user(user_id, current_user.email)
+    if user_id == DEMO_USER_ID:
+        return schemas.InOutInDB(**investment.dict(), id=9999999)
+    try:
+        result = await crud.create_user_investment_inout(investment=investment, user_id=user_id)
+    except InvestmentNotFound:
+        raise HTTPException(status_code=400, detail="Investment id not found")
+    return result
+
+
+@app.get("/users/investment_inout/", response_model=schemas.InOutUser, tags=["In/Out"])
+async def get_investments_inout_for_user(user_id: int, investment_id: int,
+                                         current_user: schemas.User =
+                                         Depends(get_current_active_user)) -> schemas.InOutUser:
+    await is_user(user_id, current_user.email)
+    try:
+        result = await crud.get_user_investment_inout(user_id=user_id, investment_id=investment_id)
+    except InvestmentNotFound:
+        raise HTTPException(status_code=400, detail="Investment id not found")
+    return result
+
+
+@app.put("/users/investment_inout/", response_model=schemas.Result, tags=["In/Out"])
+async def update_investment_inout_for_user(user_id: int, investment: schemas.InOutOut,
+                                             current_user: schemas.User =
+                                             Depends(get_current_active_user)) -> schemas.Result:
+    await is_user(user_id, current_user.email)
+    if user_id == DEMO_USER_ID:
+        return schemas.Result(**{"result": "investment in/out updated"})
+    try:
+        result = await crud.update_user_investment_inout(investment=investment, user_id=user_id)
+    except InvestmentNotFound:
+        raise HTTPException(status_code=400, detail="Investment in/out for update not found")
+    return result
+
+
+@app.delete("/users/investment_inout/", response_model=schemas.Result, tags=["In/Out"])
+async def delete_investment_inout_for_user(user_id: int, investment_in_out_id: int,
+                                           current_user: schemas.User =
+                                           Depends(get_current_active_user)) -> schemas.Result:
+    await is_user(user_id, current_user.email)
+    if user_id == DEMO_USER_ID:
+        return schemas.Result(**{"result": "investment in/out for demo user conditionally deleted"})
+    try:
+        result = await crud.delete_user_investment_inout(investment_in_out_id=investment_in_out_id,
+                                                         user_id=user_id)
+    except InvestmentNotFound:
+        raise HTTPException(status_code=400, detail="Investment in/out for delete not found")
+    return result
+
+
+@app.get("/users/categories/", response_model=schemas.CategoryUser, tags=["Categories"])
 async def get_categories_for_user(user_id: int,
                                   current_user: schemas.User = Depends(get_current_active_user)) -> schemas.CategoryUser:
     await is_user(user_id, current_user.email)
     return await crud.get_user_categories(user_id=user_id)
 
 
-@app.post("/users/{user_id}/categories/", response_model=schemas.CategoryInDB, tags=["Categories"])
+@app.post("/users/categories/", response_model=schemas.CategoryInDB, tags=["Categories"])
 async def create_category_for_user(user_id: int, category: schemas.CategoryCreate,
                                    current_user: schemas.User = Depends(get_current_active_user)) -> schemas.CategoryInDB:
     await is_user(user_id, current_user.email)
@@ -251,7 +371,20 @@ async def create_category_for_user(user_id: int, category: schemas.CategoryCreat
     return await crud.create_user_category(category=category, user_id=user_id)
 
 
-@app.delete("/users/{user_id}/categories/", tags=["Categories"])
+@app.put("/users/categories/", tags=["Categories"])
+async def update_category_for_user(user_id: int, category: schemas.CategoryOut,
+                                   current_user: schemas.User = Depends(get_current_active_user)) -> schemas.Result:
+    await is_user(user_id, current_user.email)
+    if user_id == DEMO_USER_ID:
+        return schemas.Result(**{"result": "category for demo user conditionally updated"})
+    try:
+        result =  await crud.update_user_category(category=category, user_id=user_id)
+    except CategoryNotFound:
+        raise HTTPException(status_code=400, detail="Category for update not found")
+    return result
+
+
+@app.delete("/users/categories/", tags=["Categories"])
 async def delete_category_for_user(user_id: int, category_id: int,
                                    current_user: schemas.User = Depends(get_current_active_user)) -> schemas.Result:
     await is_user(user_id, current_user.email)

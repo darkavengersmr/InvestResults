@@ -27,8 +27,8 @@ investments_history = Table(
     metadata,
     Column("id", Integer, unique=True, primary_key=True, autoincrement=True),
     Column("date", DateTime, nullable=False),
-    Column("sum", Integer, nullable=False, default=0),
-    Column("investments_id", Integer, ForeignKey("investments_items.id"))
+    Column("sum", Integer, nullable=False),
+    Column("investment_id", Integer, ForeignKey("investments_items.id"))
 )
 
 
@@ -39,7 +39,7 @@ investments_in_out = Table(
     Column("date", DateTime, nullable=False),
     Column("description", String, nullable=False, default='unknown'),
     Column("sum", Integer, nullable=False, default=0),
-    Column("investments_id", Integer, ForeignKey("investments_items.id"))
+    Column("investment_id", Integer, ForeignKey("investments_items.id"))
 )
 
 
