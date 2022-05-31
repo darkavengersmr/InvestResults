@@ -250,12 +250,12 @@ async def get_investment_report_json(user_id: int) -> schemas.InvestmentReport:
         for inout in list_investment_in_out:
             year_mon = str(inout['date'].timetuple().tm_year) + '-'\
                                   + str(inout["date"].timetuple().tm_mon).zfill(2)
-            if inout['sum'] >= 0:
+            if inout['sum'] > 0:
                 if year_mon in asset.sum_in:
                     asset.sum_in[year_mon] += inout['sum']
                 else:
                     asset.sum_in.update({year_mon: inout['sum']})
-            else:
+            elif inout['sum'] < 0:
                 if year_mon in asset.sum_out:
                     asset.sum_out[year_mon] += inout['sum']
                 else:
@@ -268,6 +268,55 @@ async def get_investment_report_json(user_id: int) -> schemas.InvestmentReport:
             year_mon = str(history['date'].timetuple().tm_year) + '-'\
                                   + str(history["date"].timetuple().tm_mon).zfill(2)
             asset.sum_fact.update({year_mon: history['sum']})
+
+        dates = set(asset.sum_fact.keys()) | set(asset.sum_in.keys()) | set(asset.sum_out.keys())
+        dates_sort_list = sorted(list(dates))
+
+        tmp_dates_sort_list = []
+        if len(dates_sort_list) > 0:
+            year_begin = int(dates_sort_list[0][0:4])
+            year_end = int(dates_sort_list[len(dates_sort_list) - 1][0:4])
+            for year in range(year_begin, year_end + 1):
+                for month in range(1, 13):
+                    date = str(year) + "-" + str(month).zfill(2)
+                    if dates_sort_list[0] <= date <= dates_sort_list[len(dates_sort_list) - 1]:
+                        tmp_dates_sort_list.append(date)
+            dates_sort_list = tmp_dates_sort_list
+
+        total_sum = 0
+        total_items = 0
+        average_sum = 0
+        average_items = 0
+        last_sum_fact = 0
+
+        for date in dates_sort_list:
+            total_items += 1
+
+            if date in asset.sum_in:
+                total_sum += asset.sum_in[date]
+
+            if date in asset.sum_out:
+                total_sum += asset.sum_in[date]
+
+            asset.sum_plan[date] = total_sum
+
+            if date not in asset.sum_fact:
+                asset.sum_fact[date] = last_sum_fact
+            else:
+                last_sum_fact = asset.sum_fact[date]
+
+            asset.sum_delta_rub[date] = asset.sum_fact[date] - total_sum
+
+            if total_sum != 0:
+                asset.sum_delta_proc[date] = round((asset.sum_fact[date] - total_sum) / total_sum * 100, 1)
+
+                average_sum += asset.sum_delta_proc[date]
+                average_items += 1
+
+                asset.sum_delta_proc_avg[date] = round(average_sum / average_items, 1)
+
+            if total_items != 0:
+                asset.sum_cashflow[date] = int((asset.sum_fact[date] - total_sum) / total_items)
 
         user_report.investment_report.append(asset)
     return user_report
@@ -311,29 +360,8 @@ async def get_investment_report_xlsx(user_id: int) -> str:
             cell.font = bold
             column += 1
 
-        dates = set(asset.sum_fact.keys()) | set(asset.sum_in.keys()) | set(asset.sum_out.keys())
-        dates_sort_list = sorted(list(dates))
-
-        tmp_dates_sort_list = []
-        if len(dates_sort_list) > 0:
-            year_begin = int(dates_sort_list[0][0:4])
-            year_end = int(dates_sort_list[len(dates_sort_list)-1][0:4])
-            for year in range(year_begin, year_end+1):
-                for month in range(1, 13):
-                    date = str(year) + "-" + str(month).zfill(2)
-                    if dates_sort_list[0] <= date <= dates_sort_list[len(dates_sort_list)-1]:
-                        tmp_dates_sort_list.append(date)
-            dates_sort_list = tmp_dates_sort_list
-
-        total_sum = 0
-        total_items = 0
-        average_sum = 0
-        average_items = 0
-        last_sum_fact = 0
-
         row = 2
-        for date in dates_sort_list:
-            total_items += 1
+        for date in asset.sum_plan:
             column = 1
             cell = sht.cell(row=row, column=column)
             cell.value = date
@@ -342,46 +370,41 @@ async def get_investment_report_xlsx(user_id: int) -> str:
                 column = 2
                 cell = sht.cell(row=row, column=column)
                 cell.value = asset.sum_in[date]
-                total_sum += asset.sum_in[date]
 
             if date in asset.sum_out:
                 column = 3
                 cell = sht.cell(row=row, column=column)
                 cell.value = asset.sum_out[date]
-                total_sum += asset.sum_in[date]
 
-            column = 4
-            cell = sht.cell(row=row, column=column)
-            cell.value = total_sum
+            if date in asset.sum_plan:
+                column = 4
+                cell = sht.cell(row=row, column=column)
+                cell.value = asset.sum_plan[date]
 
-            if date not in asset.sum_fact:
-                asset.sum_fact[date] = last_sum_fact
-            else:
-                last_sum_fact = asset.sum_fact[date]
+            if date in asset.sum_fact:
+                column = 5
+                cell = sht.cell(row=row, column=column)
+                cell.value = asset.sum_fact[date]
 
-            column = 5
-            cell = sht.cell(row=row, column=column)
-            cell.value = asset.sum_fact[date]
+            if date in asset.sum_delta_rub:
+                column = 6
+                cell = sht.cell(row=row, column=column)
+                cell.value = asset.sum_delta_rub[date]
 
-            column = 6
-            cell = sht.cell(row=row, column=column)
-            cell.value = asset.sum_fact[date] - total_sum
-
-            if total_sum > 0:
+            if date in asset.sum_delta_proc:
                 column = 7
                 cell = sht.cell(row=row, column=column)
-                cell.value = round((asset.sum_fact[date] - total_sum) / total_sum * 100, 1)
+                cell.value = asset.sum_delta_proc[date]
 
-                average_sum += cell.value
-                average_items += 1
-
+            if date in asset.sum_delta_proc_avg:
                 column = 8
                 cell = sht.cell(row=row, column=column)
-                cell.value = round(average_sum / average_items, 1)
+                cell.value = cell.value = asset.sum_delta_proc_avg[date]
 
+            if date in asset.sum_cashflow:
                 column = 9
                 cell = sht.cell(row=row, column=column)
-                cell.value = round((asset.sum_fact[date] - total_sum) / total_items, 0)
+                cell.value = cell.value = asset.sum_cashflow[date]
 
             row += 1
 

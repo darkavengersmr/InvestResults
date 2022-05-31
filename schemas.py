@@ -230,9 +230,14 @@ class Result(BaseModel):
 
 
 class InvestmentReportAsset(BaseModel):
-    sum_fact: Dict[str, int] = {}
     sum_in: Dict[str, int] = {}
     sum_out: Dict[str, int] = {}
+    sum_plan: Dict[str, int] = {}
+    sum_fact: Dict[str, int] = {}
+    sum_delta_rub: Dict[str, int] = {}
+    sum_delta_proc: Dict[str, float] = {}
+    sum_delta_proc_avg: Dict[str, float] = {}
+    sum_cashflow: Dict[str, int] = {}
     description: str = ""
     category: str = ""
     id: int = 0
