@@ -1,9 +1,14 @@
 import models
 
+import os
+from datetime import datetime
 from database import database
 from sqlalchemy import and_
-from models import users, investments_items, investments_history, investments_in_out, categories, Table
+from models import users, investments_items, investments_history, investments_in_out, categories
 import schemas
+
+from openpyxl import load_workbook, Workbook
+from openpyxl.styles import Font
 
 from exeptions import CategoryInUse, CategoryNotFound, InvestmentNotFound
 
@@ -217,3 +222,171 @@ async def delete_user_investment_inout(investment_in_out_id: int, user_id: int) 
         return schemas.Result(**{"result": "investments in/out item deleted"})
     else:
         raise InvestmentNotFound
+
+
+async def get_investment_report_json(user_id: int) -> schemas.InvestmentReport:
+    """Create investment report in json"""
+    user_report = schemas.InvestmentReport()
+
+    # get user investments
+    list_investments = await database.fetch_all(investments_items.select()
+                                                .where(investments_items.c.owner_id == user_id))
+    list_categories = await database.fetch_all(categories.select().where(categories.c.owner_id == user_id))
+
+    user_categories = {}
+    for category in list_categories:
+        user_categories.update({category['id']: category['category']})
+
+    for investment in list_investments:
+        asset = schemas.InvestmentReportAsset()
+        asset.description = investment['description']
+        asset.id = investment['id']
+        asset.category_id = investment['category_id']
+        asset.category = user_categories[asset.category_id]
+
+        list_investment_in_out = await database.fetch_all(investments_in_out.select()
+                                                          .where(investments_in_out.c.investment_id == asset.id))
+
+        for inout in list_investment_in_out:
+            year_mon = str(inout['date'].timetuple().tm_year) + '-'\
+                                  + str(inout["date"].timetuple().tm_mon).zfill(2)
+            if inout['sum'] >= 0:
+                if year_mon in asset.sum_in:
+                    asset.sum_in[year_mon] += inout['sum']
+                else:
+                    asset.sum_in.update({year_mon: inout['sum']})
+            else:
+                if year_mon in asset.sum_out:
+                    asset.sum_out[year_mon] += inout['sum']
+                else:
+                    asset.sum_out.update({year_mon: inout['sum']})
+
+        list_investment_history = await database.fetch_all(investments_history.select()
+                                                           .where(investments_history.c.investment_id == asset.id))
+
+        for history in list_investment_history:
+            year_mon = str(history['date'].timetuple().tm_year) + '-'\
+                                  + str(history["date"].timetuple().tm_mon).zfill(2)
+            asset.sum_fact.update({year_mon: history['sum']})
+
+        user_report.investment_report.append(asset)
+    return user_report
+
+
+async def get_investment_report_xlsx(user_id: int) -> str:
+    """Create investment report in xlsx"""
+    json_report = await get_investment_report_json(user_id)
+
+    wb = Workbook()
+    bold = Font(bold=True)
+
+    for asset in json_report.investment_report:
+        wb.create_sheet(asset.description)
+        sht = wb[asset.description]
+        row = column = 1
+
+        sht.column_dimensions["A"].width = 8
+        sht.column_dimensions["B"].width = 13
+        sht.column_dimensions["C"].width = 8
+        sht.column_dimensions["D"].width = 12
+        sht.column_dimensions["E"].width = 12
+        sht.column_dimensions["F"].width = 14
+        sht.column_dimensions["G"].width = 13
+        sht.column_dimensions["H"].width = 15
+        sht.column_dimensions["I"].width = 10
+
+        titles = ['Дата',
+                  'Пополнение',
+                  'Снятие',
+                  'Сумма план',
+                  'Сумма факт',
+                  'Прирост руб',
+                  'Прирост %',
+                  'Прирост средн',
+                  'Cashflow']
+
+        for title in titles:
+            cell = sht.cell(row=row, column=column)
+            cell.value = title
+            cell.font = bold
+            column += 1
+
+        dates = set(asset.sum_fact.keys()) | set(asset.sum_in.keys()) | set(asset.sum_out.keys())
+        dates_sort_list = sorted(list(dates))
+
+        tmp_dates_sort_list = []
+        if len(dates_sort_list) > 0:
+            year_begin = int(dates_sort_list[0][0:4])
+            year_end = int(dates_sort_list[len(dates_sort_list)-1][0:4])
+            for year in range(year_begin, year_end+1):
+                for month in range(1, 13):
+                    date = str(year) + "-" + str(month).zfill(2)
+                    if dates_sort_list[0] <= date <= dates_sort_list[len(dates_sort_list)-1]:
+                        tmp_dates_sort_list.append(date)
+            dates_sort_list = tmp_dates_sort_list
+
+        total_sum = 0
+        total_items = 0
+        average_sum = 0
+        average_items = 0
+        last_sum_fact = 0
+
+        row = 2
+        for date in dates_sort_list:
+            total_items += 1
+            column = 1
+            cell = sht.cell(row=row, column=column)
+            cell.value = date
+
+            if date in asset.sum_in:
+                column = 2
+                cell = sht.cell(row=row, column=column)
+                cell.value = asset.sum_in[date]
+                total_sum += asset.sum_in[date]
+
+            if date in asset.sum_out:
+                column = 3
+                cell = sht.cell(row=row, column=column)
+                cell.value = asset.sum_out[date]
+                total_sum += asset.sum_in[date]
+
+            column = 4
+            cell = sht.cell(row=row, column=column)
+            cell.value = total_sum
+
+            if date not in asset.sum_fact:
+                asset.sum_fact[date] = last_sum_fact
+            else:
+                last_sum_fact = asset.sum_fact[date]
+
+            column = 5
+            cell = sht.cell(row=row, column=column)
+            cell.value = asset.sum_fact[date]
+
+            column = 6
+            cell = sht.cell(row=row, column=column)
+            cell.value = asset.sum_fact[date] - total_sum
+
+            if total_sum > 0:
+                column = 7
+                cell = sht.cell(row=row, column=column)
+                cell.value = round((asset.sum_fact[date] - total_sum) / total_sum * 100, 1)
+
+                average_sum += cell.value
+                average_items += 1
+
+                column = 8
+                cell = sht.cell(row=row, column=column)
+                cell.value = round(average_sum / average_items, 1)
+
+                column = 9
+                cell = sht.cell(row=row, column=column)
+                cell.value = round((asset.sum_fact[date] - total_sum) / total_items, 0)
+
+            row += 1
+
+    xlsx_file = '.' + os.sep + 'static' + os.sep + 'export' + os.sep + f'investresults{user_id}.xlsx'
+    sht = wb.get_sheet_by_name('Sheet')
+    wb.remove_sheet(sht)
+    wb.save(filename=xlsx_file)
+    return xlsx_file

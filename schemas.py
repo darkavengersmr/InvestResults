@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Union
+from typing import List, Union, Dict
 from pydantic import BaseModel, BaseSettings, Field
 
 
@@ -227,3 +227,17 @@ class InOutUser(BaseModel):
 
 class Result(BaseModel):
     result: str
+
+
+class InvestmentReportAsset(BaseModel):
+    sum_fact: Dict[str, int] = {}
+    sum_in: Dict[str, int] = {}
+    sum_out: Dict[str, int] = {}
+    description: str = ""
+    category: str = ""
+    id: int = 0
+    category_id: int = 0
+
+
+class InvestmentReport(BaseModel):
+    investment_report: List[InvestmentReportAsset] = []

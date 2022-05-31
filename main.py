@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 
+import os
 import asyncio
 import uvicorn
 
@@ -9,7 +10,7 @@ from database import database, engine, metadata
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, FileResponse
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
@@ -234,7 +235,7 @@ async def update_investment_for_user(user_id: int, investment: schemas.Investmen
 
 @app.delete("/users/investment_items/", response_model=schemas.Result, tags=["Investments"])
 async def delete_investment_for_user(user_id: int, investment_id: int,
-                                current_user: schemas.User = Depends(get_current_active_user)) -> schemas.Result:
+                                     current_user: schemas.User = Depends(get_current_active_user)) -> schemas.Result:
     await is_user(user_id, current_user.email)
     if user_id == DEMO_USER_ID:
         return schemas.Result(**{"result": "investment for demo user conditionally deleted"})
@@ -397,6 +398,24 @@ async def delete_category_for_user(user_id: int, category_id: int,
     except CategoryNotFound:
         raise HTTPException(status_code=400, detail="Category for delete not found")
     return result
+
+
+@app.get("/users/reports/json/", tags=["Reports"])
+async def get_reports(user_id: int,
+                      current_user: schemas.User = Depends(get_current_active_user)) -> schemas.InvestmentReport:
+    await is_user(user_id, current_user.email)
+    return await crud.get_investment_report_json(user_id=user_id)
+
+
+@app.get("/users/reports/xlsx/", tags=["Reports"])
+async def get_reports(user_id: int,
+                      current_user: schemas.User = Depends(get_current_active_user)) -> FileResponse:
+    await is_user(user_id, current_user.email)
+    filename_in = await crud.get_investment_report_xlsx(user_id=user_id)
+    this_month = str(datetime.now())
+    filename_out = f'investresults{this_month[:10]}.xlsx'
+    return FileResponse(path=filename_in, filename=filename_out,
+                        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 
 app.mount("/", StaticFiles(directory="static"), name="static")
