@@ -48,7 +48,7 @@ tags_metadata = [
     },
     {
         "name": "History",
-        "description": "История состояния инвестиций",
+        "description": "Оценка стоимости на дату",
     },
     {
         "name": "In/Out",
@@ -59,13 +59,17 @@ tags_metadata = [
         "description": "Категории инвестиций",
     },
     {
+        "name": "Key Rates",
+        "description": "История ключевой ставки ЦБ",
+    },
+    {
         "name": "Reports",
         "description": "Отчеты",
     },
 ]
 
 app = FastAPI(
-    title="InvestResults Api",
+    title="Мои.Инвестиции Api",
     version="1.0.0",
     openapi_tags=tags_metadata,
 )
@@ -398,6 +402,13 @@ async def delete_category_for_user(user_id: int, category_id: int,
     except CategoryNotFound:
         raise HTTPException(status_code=400, detail="Category for delete not found")
     return result
+
+
+@app.get("/key_rates/", response_model=schemas.KeyRateUser, tags=["Key Rates"])
+async def get_investments_for_user(user_id: int, current_user: schemas.User =
+                                   Depends(get_current_active_user)) -> schemas.KeyRateUser:
+    await is_user(user_id, current_user.email)
+    return await crud.get_key_rate()
 
 
 @app.get("/users/reports/json/", tags=["Reports"])

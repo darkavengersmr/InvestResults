@@ -18,7 +18,8 @@ investments_items = Table(
     Column("id", Integer, unique=True, primary_key=True, autoincrement=True),
     Column("description", String, nullable=False, default='unknown'),
     Column("category_id", Integer, nullable=True),
-    Column("owner_id", Integer, ForeignKey("users.id"))
+    Column("owner_id", Integer, ForeignKey("users.id")),
+    Column("is_active", Boolean, default=True)
 )
 
 
@@ -49,4 +50,13 @@ categories = Table(
     Column("id", Integer, unique=True, primary_key=True, autoincrement=True),
     Column("category", String, nullable=False, default='unknown'),
     Column("owner_id", Integer, ForeignKey("users.id"))
+)
+
+
+key_rate = Table(
+    "key_rate",
+    metadata,
+    Column("id", Integer, unique=True, primary_key=True, autoincrement=True),
+    Column("date", DateTime, nullable=False),
+    Column("key_rate", Integer, nullable=False),
 )

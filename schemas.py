@@ -62,6 +62,7 @@ class TokenData(BaseModel):
 class InvestmentBase(BaseModel):
     description: str = 'Прочие инвестиции'
     category_id: Union[None, int] = None
+    is_active: bool = True
 
 
 class InvestmentCreate(InvestmentBase):
@@ -81,6 +82,7 @@ class InvestmentOut(BaseModel):
     id: int
     description: str
     category_id: Union[None, int]
+    is_active: bool = True
 
     class Config:
         orm_mode = True
@@ -220,6 +222,46 @@ class InOutDelete(BaseModel):
 
 class InOutUser(BaseModel):
     in_out: List[InOutOut] = []
+
+    class Config:
+        orm_mode = True
+
+
+class KeyRateBase(BaseModel):
+    date: datetime = Field(default_factory=datetime.now)
+    key_rate: int = 0
+
+
+class KeyRateCreate(KeyRateBase):
+    class Config:
+        orm_mode = True
+
+
+class KeyRateInDB(KeyRateBase):
+    id: int
+
+    class Config:
+        orm_mode = True
+
+
+class KeyRateOut(BaseModel):
+    id: int
+    date: datetime
+    key_rate: int
+
+    class Config:
+        orm_mode = True
+
+
+class KeyRateDelete(BaseModel):
+    id: int
+
+    class Config:
+        orm_mode = True
+
+
+class KeyRateUser(BaseModel):
+    key_rates: List[KeyRateOut] = []
 
     class Config:
         orm_mode = True

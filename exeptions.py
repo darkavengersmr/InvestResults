@@ -20,3 +20,7 @@ class CategoryNotFound(Exception):
 
 class InvestmentNotFound(Exception):
     """Error - investment not found"""
+
+
+class KeyRateNotFound(Exception):
+    """Error - investment not found"""

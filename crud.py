@@ -4,13 +4,13 @@ import os
 from datetime import datetime
 from database import database
 from sqlalchemy import and_
-from models import users, investments_items, investments_history, investments_in_out, categories
+from models import users, investments_items, investments_history, investments_in_out, categories, key_rate
 import schemas
 
 from openpyxl import load_workbook, Workbook
 from openpyxl.styles import Font
 
-from exeptions import CategoryInUse, CategoryNotFound, InvestmentNotFound
+from exeptions import CategoryInUse, CategoryNotFound, InvestmentNotFound, KeyRateNotFound
 
 
 async def get_user(user_id: int | None = None,
@@ -94,15 +94,14 @@ async def get_user_categories(user_id: int) -> schemas.CategoryUser:
 
 
 async def update_user_category(category: schemas.CategoryOut, user_id: int) -> schemas.Result:
-    """Delete unused category from DB"""
-    query = investments_items.select().where(and_(investments_items.c.category_id == category.id,
-                                                  investments_items.c.owner_id == user_id))
+    """Update category from DB"""
+    query = categories.select().where(and_(categories.c.id == category.id,
+                                           categories.c.owner_id == user_id))
     categories_found = await database.fetch_all(query)
     if categories_found:
         query = categories.update().where((categories.c.id == category.id)).values(category=category.category)
-        result = await database.execute(query)
-        if result:
-            return schemas.Result(**{"result": "category updated"})
+        await database.execute(query)
+        return schemas.Result(**{"result": "category updated"})
     else:
         raise CategoryNotFound
 
@@ -224,6 +223,15 @@ async def delete_user_investment_inout(investment_in_out_id: int, user_id: int) 
         raise InvestmentNotFound
 
 
+async def get_key_rate() -> schemas.KeyRateUser:
+    """Get key rate from DB"""
+    list_key_rates = await database.fetch_all(key_rate.select())
+    if list_key_rates:
+        return schemas.KeyRateUser(**{"key_rates": [dict(result) for result in list_key_rates]})
+    else:
+        raise KeyRateNotFound
+
+
 async def get_investment_report_json(user_id: int) -> schemas.InvestmentReport:
     """Create investment report in json"""
     user_report = schemas.InvestmentReport()
@@ -242,7 +250,8 @@ async def get_investment_report_json(user_id: int) -> schemas.InvestmentReport:
         asset.description = investment['description']
         asset.id = investment['id']
         asset.category_id = investment['category_id']
-        asset.category = user_categories[asset.category_id]
+        if user_categories:
+            asset.category = user_categories[asset.category_id]
 
         list_investment_in_out = await database.fetch_all(investments_in_out.select()
                                                           .where(investments_in_out.c.investment_id == asset.id))
@@ -334,15 +343,10 @@ async def get_investment_report_xlsx(user_id: int) -> str:
         sht = wb[asset.description]
         row = column = 1
 
-        sht.column_dimensions["A"].width = 8
-        sht.column_dimensions["B"].width = 13
-        sht.column_dimensions["C"].width = 8
-        sht.column_dimensions["D"].width = 12
-        sht.column_dimensions["E"].width = 12
-        sht.column_dimensions["F"].width = 14
-        sht.column_dimensions["G"].width = 13
-        sht.column_dimensions["H"].width = 15
-        sht.column_dimensions["I"].width = 10
+        column_dimensions = {"A": 8, "B": 13, "C": 8, "D": 12, "E": 12, "F": 14, "G": 13, "H": 15, "I": 10}
+    
+        for col in column_dimensions.keys():
+            sht.column_dimensions[col].width = column_dimensions[col]
 
         titles = ['Дата',
                   'Пополнение',

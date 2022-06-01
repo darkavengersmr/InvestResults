@@ -40,7 +40,8 @@ CREATE TABLE public.investments_items
 	id serial NOT NULL,
 	description text NOT NULL,
 	category_id integer REFERENCES categories(id) ON DELETE CASCADE,
-	owner_id integer REFERENCES users(id) ON DELETE CASCADE NOT NULL,	
+	owner_id integer REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+	is_active boolean NOT NULL,	
 	CONSTRAINT pk_investments_id PRIMARY KEY (id)
 )
 
@@ -86,4 +87,19 @@ WITH (
 ALTER TABLE IF EXISTS public.investments_in_out
     OWNER to pi;
 
+
+CREATE TABLE public.key_rate
+(
+	id serial NOT NULL,
+	date timestamp with time zone,
+	key_rate real NOT NULL,
+	CONSTRAINT pk_key_rate_id PRIMARY KEY (id)
+)
+
+WITH (
+    OIDS = FALSE
+);
+
+ALTER TABLE IF EXISTS public.key_rate
+    OWNER to pi;
 
