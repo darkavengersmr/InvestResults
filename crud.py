@@ -241,6 +241,8 @@ async def get_investment_report_json(user_id: int) -> schemas.InvestmentReport:
                                                 .where(investments_items.c.owner_id == user_id))
     list_categories = await database.fetch_all(categories.select().where(categories.c.owner_id == user_id))
 
+    list_key_rates = await database.fetch_all(key_rate.select())
+
     user_categories = {}
     for category in list_categories:
         user_categories.update({category['id']: category['category']})
@@ -278,6 +280,11 @@ async def get_investment_report_json(user_id: int) -> schemas.InvestmentReport:
                                   + str(history["date"].timetuple().tm_mon).zfill(2)
             asset.sum_fact.update({year_mon: history['sum']})
 
+        for key_rate_item in list_key_rates:
+            year_mon = str(key_rate_item['date'].timetuple().tm_year) + '-' \
+                       + str(key_rate_item["date"].timetuple().tm_mon).zfill(2)
+            asset.key_rates.update({year_mon: key_rate_item['key_rate']})
+
         dates = set(asset.sum_fact.keys()) | set(asset.sum_in.keys()) | set(asset.sum_out.keys())
         dates_sort_list = sorted(list(dates))
 
@@ -297,22 +304,42 @@ async def get_investment_report_json(user_id: int) -> schemas.InvestmentReport:
         average_sum = 0
         average_items = 0
         last_sum_fact = 0
+        deposit_index_sum = 0
+        last_key_rate = 4
 
         for date in dates_sort_list:
             total_items += 1
 
             if date in asset.sum_in:
                 total_sum += asset.sum_in[date]
+                deposit_index_sum += asset.sum_in[date]
 
             if date in asset.sum_out:
                 total_sum += asset.sum_in[date]
+                deposit_index_sum += asset.sum_in[date]
+
+            if date in asset.key_rates:
+                deposit_index_sum += deposit_index_sum * asset.key_rates[date] / 100 / 12
+                last_key_rate = asset.key_rates[date]
+            else:
+                deposit_index_sum += deposit_index_sum * last_key_rate / 100 / 12
+
+            asset.sum_deposit_index[date] = int(deposit_index_sum)
+            if deposit_index_sum != 0:
+                asset.ratio_deposit_index[date] = int(total_sum/deposit_index_sum * 100 - 100)
+            else:
+                asset.ratio_deposit_index[date] = 0
 
             asset.sum_plan[date] = total_sum
 
             if date not in asset.sum_fact:
                 asset.sum_fact[date] = last_sum_fact
+                if deposit_index_sum != 0:
+                    asset.ratio_deposit_index[date] = int(last_sum_fact / deposit_index_sum * 100 - 100)
             else:
                 last_sum_fact = asset.sum_fact[date]
+                if deposit_index_sum != 0:
+                    asset.ratio_deposit_index[date] = int(asset.sum_fact[date] / deposit_index_sum * 100 - 100)
 
             asset.sum_delta_rub[date] = asset.sum_fact[date] - total_sum
 
@@ -343,7 +370,8 @@ async def get_investment_report_xlsx(user_id: int) -> str:
         sht = wb[asset.description]
         row = column = 1
 
-        column_dimensions = {"A": 8, "B": 13, "C": 8, "D": 12, "E": 12, "F": 14, "G": 13, "H": 15, "I": 10}
+        column_dimensions = {"A": 8, "B": 13, "C": 8, "D": 12, "E": 12, "F": 14,
+                             "G": 13, "H": 15, "I": 9, "J": 14, "K": 16}
     
         for col in column_dimensions.keys():
             sht.column_dimensions[col].width = column_dimensions[col]
@@ -356,7 +384,9 @@ async def get_investment_report_xlsx(user_id: int) -> str:
                   'Прирост руб',
                   'Прирост %',
                   'Прирост средн',
-                  'Cashflow']
+                  'Cashflow',
+                  'ЕслиНаВклад',
+                  'ОтклОтВклада%']
 
         for title in titles:
             cell = sht.cell(row=row, column=column)
@@ -409,6 +439,16 @@ async def get_investment_report_xlsx(user_id: int) -> str:
                 column = 9
                 cell = sht.cell(row=row, column=column)
                 cell.value = cell.value = asset.sum_cashflow[date]
+
+            if date in asset.sum_deposit_index:
+                column = 10
+                cell = sht.cell(row=row, column=column)
+                cell.value = cell.value = asset.sum_deposit_index[date]
+
+            if date in asset.ratio_deposit_index:
+                column = 11
+                cell = sht.cell(row=row, column=column)
+                cell.value = cell.value = asset.ratio_deposit_index[date]
 
             row += 1
 

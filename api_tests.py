@@ -9,7 +9,7 @@ from config import TEST_USER_USERNAME, TEST_USER_PASSWORD
 
 
 class LocalStorage:
-    def __init__(self, username=TEST_USER_USERNAME, password=TEST_USER_PASSWORD):
+    def __init__(self, username, password):
         self.username = username
         self.password = password
         self.token = None
@@ -37,7 +37,7 @@ class LocalStorage:
             self.email = mydata['email']
 
 
-storage = LocalStorage()
+storage = LocalStorage(username=TEST_USER_USERNAME, password=TEST_USER_PASSWORD)
 
 
 class TestInvestment(aiounittest.AsyncTestCase):
