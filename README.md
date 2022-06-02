@@ -11,4 +11,4 @@ Backend сервиса "Мои.Инвестиции". Используется FastApi/PostgreSQL.
 
 Frontend здесь <comming soon>
 
-![alt text](screenshots/screenshot.jpg "Мои.Инвестиции")
+![alt text](screenshots/ui1.jpg "Мои.Инвестиции")
