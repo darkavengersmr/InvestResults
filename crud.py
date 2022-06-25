@@ -46,9 +46,19 @@ async def create_user_investment_item(investment: schemas.InvestmentCreate, user
 
 async def get_user_investment_items(user_id: int) -> schemas.InvestmentUser:
     """Get user investments by user_id from DB"""
-    list_investments = await database.fetch_all(investments_items.select()
-                                                .where(investments_items.c.owner_id == user_id))
-    return schemas.InvestmentUser(**{"investments": [dict(result) for result in list_investments]})
+    # data only from investments_items
+    #list_investments = await database.fetch_all(investments_items.select()
+    #                                            .where(investments_items.c.owner_id == user_id))
+
+    # add last sum from history
+    query = "SELECT id, description, (SELECT category FROM categories WHERE id = category_id), owner_id, " \
+            "(SELECT sum from investments_history WHERE date = " \
+            "(SELECT max(date) FROM investments_history " \
+            "WHERE investment_id = investments_items.id) AND investment_id = investments_items.id) " \
+            "FROM investments_items WHERE owner_id = :user_id"
+    list_investments = await database.fetch_all(query=query, values={"user_id": user_id})
+    list_investments_with_results = await add_investments_results(user_id, list_investments)
+    return schemas.InvestmentUser(**{"investments": [dict(result) for result in list_investments_with_results]})
 
 
 async def update_user_investment_item(investment: schemas.InvestmentOut, user_id: int) -> schemas.Result:
@@ -457,3 +467,26 @@ async def get_investment_report_xlsx(user_id: int) -> str:
     wb.remove_sheet(sht)
     wb.save(filename=xlsx_file)
     return xlsx_file
+
+
+async def add_investments_results(user_id: int, list_investments) -> dict:
+    """Add results to investments"""
+    json_report = await get_investment_report_json(user_id)
+
+    procs = {}
+
+    for asset in json_report.investment_report:
+        sum_delta_proc = 0
+        for date in asset.sum_delta_proc:
+            sum_delta_proc = asset.sum_delta_proc[date]
+        procs[asset.id] = sum_delta_proc
+
+    result = []
+    for investment in list_investments:
+        investment_dict = dict(investment)
+        if investment_dict['id'] in procs:
+            investment_dict['proc'] = procs[investment_dict['id']]
+        result.append(investment_dict)
+
+    return result
+

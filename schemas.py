@@ -81,8 +81,10 @@ class InvestmentInDB(InvestmentBase):
 class InvestmentOut(BaseModel):
     id: int
     description: str
-    category_id: Union[None, int]
+    category: Union[None, str]
     is_active: bool = True
+    sum: int
+    proc: float
 
     class Config:
         orm_mode = True
