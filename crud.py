@@ -46,18 +46,22 @@ async def create_user_investment_item(investment: schemas.InvestmentCreate, user
 
 async def get_user_investment_items(user_id: int) -> schemas.InvestmentUser:
     """Get user investments by user_id from DB"""
-    # data only from investments_items
-    #list_investments = await database.fetch_all(investments_items.select()
-    #                                            .where(investments_items.c.owner_id == user_id))
-
-    # add last sum from history
-    query = "SELECT id, description, (SELECT category FROM categories WHERE id = category_id), owner_id, " \
+    query = "SELECT id, description, is_active, (SELECT category FROM categories WHERE id = category_id), owner_id, " \
             "(SELECT sum from investments_history WHERE date = " \
             "(SELECT max(date) FROM investments_history " \
             "WHERE investment_id = investments_items.id) AND investment_id = investments_items.id) " \
             "FROM investments_items WHERE owner_id = :user_id"
+
     list_investments = await database.fetch_all(query=query, values={"user_id": user_id})
     list_investments_with_results = await add_investments_results(user_id, list_investments)
+
+    # if history and in/out for new investment not exist
+    for investment in list_investments_with_results:
+        if investment['sum'] is None:
+            investment['sum'] = 0
+        if investment['proc'] is None:
+            investment['proc'] = 0
+
     return schemas.InvestmentUser(**{"investments": [dict(result) for result in list_investments_with_results]})
 
 
