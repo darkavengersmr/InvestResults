@@ -65,7 +65,7 @@ async def get_user_investment_items(user_id: int) -> schemas.InvestmentUser:
     return schemas.InvestmentUser(**{"investments": [dict(result) for result in list_investments_with_results]})
 
 
-async def update_user_investment_item(investment: schemas.InvestmentOut, user_id: int) -> schemas.Result:
+async def update_user_investment_item(investment: schemas.InvestmentInDB, user_id: int) -> schemas.Result:
     """Update user investment in DB (description, category_id)"""
     investment_in_db = await database.fetch_one(investments_items.select()
                                                 .where(and_(investments_items.c.id == investment.id,
@@ -82,6 +82,21 @@ async def update_user_investment_item(investment: schemas.InvestmentOut, user_id
 
 async def delete_user_investment_item(investment_id: int, user_id: int) -> schemas.Result:
     """Delete user investment by id from DB"""
+
+    investment_in_db = await database.fetch_one(investments_items.select()
+                                                .where(and_(investments_items.c.id == investment_id,
+                                                            investments_items.c.owner_id == user_id)))
+    if investment_in_db:
+        investment_status = dict(investment_in_db)
+        query = investments_items.update().where(and_(investments_items.c.id == investment_id,
+                                                      investments_items.c.owner_id == user_id)) \
+            .values(is_active=not investment_status['is_active'])
+        await database.execute(query)
+        return schemas.Result(**{"result": "investment deactivated"})
+    else:
+        raise InvestmentNotFound
+    '''
+    # delete investment item or deactivate
     query = investments_items.select().where(and_(investments_items.c.id == investment_id,
                                                   investments_items.c.owner_id == user_id))
     result = await database.fetch_one(query)
@@ -92,6 +107,7 @@ async def delete_user_investment_item(investment_id: int, user_id: int) -> schem
         return schemas.Result(**{"result": "investments deleted"})
     else:
         raise InvestmentNotFound
+    '''
 
 
 async def create_user_category(category: schemas.CategoryCreate, user_id: int) -> schemas.CategoryInDB:

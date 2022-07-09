@@ -225,7 +225,7 @@ async def get_investments_for_user(user_id: int,
 
 
 @app.put("/users/investment_items/", response_model=schemas.Result, tags=["Investments"])
-async def update_investment_for_user(user_id: int, investment: schemas.InvestmentOut,
+async def update_investment_for_user(user_id: int, investment: schemas.InvestmentInDB,
                                      current_user: schemas.User = Depends(get_current_active_user)) -> schemas.Result:
     await is_user(user_id, current_user.email)
     if user_id == DEMO_USER_ID:
