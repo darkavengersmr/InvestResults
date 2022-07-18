@@ -429,7 +429,7 @@ async def get_reports(user_id: int,
                         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 
-#app.mount("/", StaticFiles(directory="static"), name="static")
+app.mount("/", StaticFiles(directory="static"), name="static")
 
 
 if __name__ == "__main__":
