@@ -166,13 +166,13 @@ async def is_user(user_id: int, email: str) -> schemas.UserInDB:
         raise HTTPException(status_code=404, detail="Query for other user prohibited")
     return db_user
 
-
+'''
 @app.get("/")
 async def redirect_to_index_html():
     return RedirectResponse(url=f"/index.html", status_code=303)
+'''
 
-
-@app.post("/register", response_model=schemas.User, tags=["Register"])
+@app.post("/api/register", response_model=schemas.User, tags=["Register"])
 async def create_user(user: schemas.UserCreate) -> schemas.User:
     if not await crud.get_user(email=user.email):
         hashed_password = get_password_hash(user.password)
@@ -184,7 +184,7 @@ async def create_user(user: schemas.UserCreate) -> schemas.User:
         raise HTTPException(status_code=400, detail="Email already registered")
 
 
-@app.post("/token", response_model=schemas.Token , tags=["Token"])
+@app.post("/api/token", response_model=schemas.Token , tags=["Token"])
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()) -> schemas.Token:
     try:
         user = await authenticate_user(form_data.username, form_data.password)
@@ -202,12 +202,12 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
     return schemas.Token(**{"access_token": access_token, "token_type": "bearer"})
 
 
-@app.get("/user", response_model=schemas.User, tags=["User"])
+@app.get("/api/user", response_model=schemas.User, tags=["User"])
 async def read_user(current_user: schemas.User = Depends(get_current_active_user)) -> schemas.UserInDB:
     return await is_user(current_user.id, current_user.email)
 
 
-@app.post("/users/investment_items/", response_model=schemas.InvestmentInDB, tags=["Investments"])
+@app.post("/api/users/investment_items/", response_model=schemas.InvestmentInDB, tags=["Investments"])
 async def create_investment_for_user(user_id: int, investment: schemas.InvestmentCreate,
                                 current_user: schemas.User = Depends(get_current_active_user)) -> schemas.InvestmentInDB:
     await is_user(user_id, current_user.email)
@@ -216,7 +216,7 @@ async def create_investment_for_user(user_id: int, investment: schemas.Investmen
     return await crud.create_user_investment_item(investment=investment, user_id=user_id)
 
 
-@app.get("/users/investment_items/", response_model=schemas.InvestmentUser, tags=["Investments"])
+@app.get("/api/users/investment_items/", response_model=schemas.InvestmentUser, tags=["Investments"])
 async def get_investments_for_user(user_id: int,
                                    current_user: schemas.User =
                                    Depends(get_current_active_user)) -> schemas.InvestmentUser:
@@ -224,7 +224,7 @@ async def get_investments_for_user(user_id: int,
     return await crud.get_user_investment_items(user_id=user_id)
 
 
-@app.put("/users/investment_items/", response_model=schemas.Result, tags=["Investments"])
+@app.put("/api/users/investment_items/", response_model=schemas.Result, tags=["Investments"])
 async def update_investment_for_user(user_id: int, investment: schemas.InvestmentInDB,
                                      current_user: schemas.User = Depends(get_current_active_user)) -> schemas.Result:
     await is_user(user_id, current_user.email)
@@ -237,7 +237,7 @@ async def update_investment_for_user(user_id: int, investment: schemas.Investmen
     return result
 
 
-@app.delete("/users/investment_items/", response_model=schemas.Result, tags=["Investments"])
+@app.delete("/api/users/investment_items/", response_model=schemas.Result, tags=["Investments"])
 async def delete_investment_for_user(user_id: int, investment_id: int,
                                      current_user: schemas.User = Depends(get_current_active_user)) -> schemas.Result:
     await is_user(user_id, current_user.email)
@@ -250,7 +250,7 @@ async def delete_investment_for_user(user_id: int, investment_id: int,
     return result
 
 
-@app.post("/users/investment_history/", response_model=schemas.HistoryInDB, tags=["History"])
+@app.post("/api/users/investment_history/", response_model=schemas.HistoryInDB, tags=["History"])
 async def create_investment_history_for_user(user_id: int, investment: schemas.HistoryCreate,
                                              current_user: schemas.User =
                                              Depends(get_current_active_user)) -> schemas.HistoryInDB:
@@ -264,7 +264,7 @@ async def create_investment_history_for_user(user_id: int, investment: schemas.H
     return result
 
 
-@app.get("/users/investment_history/", response_model=schemas.HistoryUser, tags=["History"])
+@app.get("/api/users/investment_history/", response_model=schemas.HistoryUser, tags=["History"])
 async def get_investments_history_for_user(user_id: int, investment_id: int,
                                            current_user: schemas.User =
                                            Depends(get_current_active_user)) -> schemas.HistoryUser:
@@ -276,7 +276,7 @@ async def get_investments_history_for_user(user_id: int, investment_id: int,
     return result
 
 
-@app.put("/users/investment_history/", response_model=schemas.Result, tags=["History"])
+@app.put("/api/users/investment_history/", response_model=schemas.Result, tags=["History"])
 async def update_investment_history_for_user(user_id: int, investment: schemas.HistoryOut,
                                              current_user: schemas.User =
                                              Depends(get_current_active_user)) -> schemas.Result:
@@ -290,7 +290,7 @@ async def update_investment_history_for_user(user_id: int, investment: schemas.H
     return result
 
 
-@app.delete("/users/investment_history/", response_model=schemas.Result, tags=["History"])
+@app.delete("/api/users/investment_history/", response_model=schemas.Result, tags=["History"])
 async def delete_investment_history_for_user(user_id: int, investment_history_id: int,
                                              current_user: schemas.User =
                                              Depends(get_current_active_user)) -> schemas.Result:
@@ -305,7 +305,7 @@ async def delete_investment_history_for_user(user_id: int, investment_history_id
     return result
 
 
-@app.post("/users/investment_inout/", response_model=schemas.InOutInDB, tags=["In/Out"])
+@app.post("/api/users/investment_inout/", response_model=schemas.InOutInDB, tags=["In/Out"])
 async def create_investment_inout_for_user(user_id: int, investment: schemas.InOutCreate,
                                              current_user: schemas.User =
                                              Depends(get_current_active_user)) -> schemas.InOutInDB:
@@ -319,7 +319,7 @@ async def create_investment_inout_for_user(user_id: int, investment: schemas.InO
     return result
 
 
-@app.get("/users/investment_inout/", response_model=schemas.InOutUser, tags=["In/Out"])
+@app.get("/api/users/investment_inout/", response_model=schemas.InOutUser, tags=["In/Out"])
 async def get_investments_inout_for_user(user_id: int, investment_id: int,
                                          current_user: schemas.User =
                                          Depends(get_current_active_user)) -> schemas.InOutUser:
@@ -331,7 +331,7 @@ async def get_investments_inout_for_user(user_id: int, investment_id: int,
     return result
 
 
-@app.put("/users/investment_inout/", response_model=schemas.Result, tags=["In/Out"])
+@app.put("/api/users/investment_inout/", response_model=schemas.Result, tags=["In/Out"])
 async def update_investment_inout_for_user(user_id: int, investment: schemas.InOutOut,
                                              current_user: schemas.User =
                                              Depends(get_current_active_user)) -> schemas.Result:
@@ -345,7 +345,7 @@ async def update_investment_inout_for_user(user_id: int, investment: schemas.InO
     return result
 
 
-@app.delete("/users/investment_inout/", response_model=schemas.Result, tags=["In/Out"])
+@app.delete("/api/users/investment_inout/", response_model=schemas.Result, tags=["In/Out"])
 async def delete_investment_inout_for_user(user_id: int, investment_in_out_id: int,
                                            current_user: schemas.User =
                                            Depends(get_current_active_user)) -> schemas.Result:
@@ -360,14 +360,14 @@ async def delete_investment_inout_for_user(user_id: int, investment_in_out_id: i
     return result
 
 
-@app.get("/users/categories/", response_model=schemas.CategoryUser, tags=["Categories"])
+@app.get("/api/users/categories/", response_model=schemas.CategoryUser, tags=["Categories"])
 async def get_categories_for_user(user_id: int,
                                   current_user: schemas.User = Depends(get_current_active_user)) -> schemas.CategoryUser:
     await is_user(user_id, current_user.email)
     return await crud.get_user_categories(user_id=user_id)
 
 
-@app.post("/users/categories/", response_model=schemas.CategoryInDB, tags=["Categories"])
+@app.post("/api/users/categories/", response_model=schemas.CategoryInDB, tags=["Categories"])
 async def create_category_for_user(user_id: int, category: schemas.CategoryCreate,
                                    current_user: schemas.User = Depends(get_current_active_user)) -> schemas.CategoryInDB:
     await is_user(user_id, current_user.email)
@@ -376,7 +376,7 @@ async def create_category_for_user(user_id: int, category: schemas.CategoryCreat
     return await crud.create_user_category(category=category, user_id=user_id)
 
 
-@app.put("/users/categories/", tags=["Categories"])
+@app.put("/api/users/categories/", tags=["Categories"])
 async def update_category_for_user(user_id: int, category: schemas.CategoryOut,
                                    current_user: schemas.User = Depends(get_current_active_user)) -> schemas.Result:
     await is_user(user_id, current_user.email)
@@ -389,7 +389,7 @@ async def update_category_for_user(user_id: int, category: schemas.CategoryOut,
     return result
 
 
-@app.delete("/users/categories/", tags=["Categories"])
+@app.delete("/api/users/categories/", tags=["Categories"])
 async def delete_category_for_user(user_id: int, category_id: int,
                                    current_user: schemas.User = Depends(get_current_active_user)) -> schemas.Result:
     await is_user(user_id, current_user.email)
@@ -404,21 +404,21 @@ async def delete_category_for_user(user_id: int, category_id: int,
     return result
 
 
-@app.get("/key_rates/", response_model=schemas.KeyRateUser, tags=["Key Rates"])
+@app.get("/api/key_rates/", response_model=schemas.KeyRateUser, tags=["Key Rates"])
 async def get_investments_for_user(user_id: int, current_user: schemas.User =
                                    Depends(get_current_active_user)) -> schemas.KeyRateUser:
     await is_user(user_id, current_user.email)
     return await crud.get_key_rate()
 
 
-@app.get("/users/reports/json/", tags=["Reports"])
+@app.get("/api/users/reports/json/", tags=["Reports"])
 async def get_reports(user_id: int,
                       current_user: schemas.User = Depends(get_current_active_user)) -> schemas.InvestmentReport:
     await is_user(user_id, current_user.email)
     return await crud.get_investment_report_json(user_id=user_id)
 
 
-@app.get("/users/reports/xlsx/", tags=["Reports"])
+@app.get("/api/users/reports/xlsx/", tags=["Reports"])
 async def get_reports(user_id: int,
                       current_user: schemas.User = Depends(get_current_active_user)) -> FileResponse:
     await is_user(user_id, current_user.email)
@@ -429,7 +429,7 @@ async def get_reports(user_id: int,
                         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 
-app.mount("/", StaticFiles(directory="static"), name="static")
+#app.mount("/", StaticFiles(directory="static"), name="static")
 
 
 if __name__ == "__main__":
