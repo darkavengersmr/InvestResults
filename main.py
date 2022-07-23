@@ -10,7 +10,7 @@ from database import database, engine, metadata
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse, FileResponse
+from fastapi.responses import FileResponse
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
@@ -25,7 +25,7 @@ from exeptions import DBNoConnection, TooShortPassword, UserPasswordIsInvalid, C
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/token")
 
 metadata.create_all(bind=engine)
 
@@ -184,8 +184,9 @@ async def create_user(user: schemas.UserCreate) -> schemas.User:
         raise HTTPException(status_code=400, detail="Email already registered")
 
 
-@app.post("/api/token", response_model=schemas.Token , tags=["Token"])
+@app.post("/api/token", response_model=schemas.Token, tags=["Token"])
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()) -> schemas.Token:
+    print(form_data.username, form_data.password)
     try:
         user = await authenticate_user(form_data.username, form_data.password)
     except UserPasswordIsInvalid:
@@ -409,6 +410,15 @@ async def get_investments_for_user(user_id: int, current_user: schemas.User =
                                    Depends(get_current_active_user)) -> schemas.KeyRateUser:
     await is_user(user_id, current_user.email)
     return await crud.get_key_rate()
+
+
+@app.post("/api/key_rates/", response_model=schemas.KeyRateInDB, tags=["Key Rates"])
+async def create_category_for_user(user_id: int, keyrate: schemas.KeyRateCreate,
+                                   current_user: schemas.User = Depends(get_current_active_user)) -> schemas.KeyRateInDB:
+    await is_user(user_id, current_user.email)
+    if user_id == DEMO_USER_ID:
+        return schemas.KeyRateInDB(**keyrate.dict(), id=9999999)
+    return await crud.create_user_key_rate(keyrate=keyrate)
 
 
 @app.get("/api/users/reports/json/", tags=["Reports"])

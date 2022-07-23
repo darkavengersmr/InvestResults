@@ -249,7 +249,7 @@ class KeyRateInDB(KeyRateBase):
 class KeyRateOut(BaseModel):
     id: int
     date: datetime
-    key_rate: int
+    key_rate: float
 
     class Config:
         orm_mode = True

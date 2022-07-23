@@ -262,6 +262,13 @@ async def get_key_rate() -> schemas.KeyRateUser:
         raise KeyRateNotFound
 
 
+async def create_user_key_rate(keyrate: schemas.KeyRateCreate) -> schemas.KeyRateInDB:
+    """Create new key rate in DB"""
+    query = key_rate.insert().values(**keyrate.dict())
+    key_rate_id = await database.execute(query)
+    return schemas.KeyRateInDB(**keyrate.dict(), id=key_rate_id)
+
+
 async def get_investment_report_json(user_id: int) -> schemas.InvestmentReport:
     """Create investment report in json"""
     user_report = schemas.InvestmentReport()
