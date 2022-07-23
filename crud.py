@@ -356,10 +356,10 @@ async def get_investment_report_json(user_id: int) -> schemas.InvestmentReport:
                 deposit_index_sum += asset.sum_out[date]
 
             if date in asset.key_rates:
-                deposit_index_sum += deposit_index_sum * asset.key_rates[date] / 100 / 12
+                deposit_index_sum += deposit_index_sum * (asset.key_rates[date]-1) / 100 / 12
                 last_key_rate = asset.key_rates[date]
             else:
-                deposit_index_sum += deposit_index_sum * last_key_rate / 100 / 12
+                deposit_index_sum += deposit_index_sum * (last_key_rate-1) / 100 / 12
 
             asset.sum_deposit_index[date] = int(deposit_index_sum)
             if deposit_index_sum != 0:
